@@ -6,6 +6,7 @@ import {
 } from './data';
 import { POMODORO_WORK_TIME, POMODORO_BREAK_TIME } from './constans';
 import { getNow, addMinutesToDate, getRemainingDate } from './helpers/date';
+import { createTimer } from './helpers/timer';
 
 class PomodoroApp {
   constructor(options) {
@@ -41,7 +42,7 @@ class PomodoroApp {
 
   addTaskToTable(task, index) {
     const $newTaskEl = document.createElement('tr');
-    $newTaskEl.innerHTML = `<th scope="row">${task.id}</th><td>${task.title}</td>`;
+    $newTaskEl.innerHTML = `<th scope="row">${task.id}</th><td>${task.title}</td> <td><button id='${task.id}' class="btn-delete"><i class="fa fa-trash"></i></button></td>`;
     $newTaskEl.setAttribute('data-taskId', `task${task.id}`);
     if (task.completed) {
       $newTaskEl.classList.add('completed');
@@ -54,7 +55,7 @@ class PomodoroApp {
     this.$taskForm.addEventListener('submit', (e) => {
       e.preventDefault();
       const task = { title: this.$taskFormInput.value, completed: false };
-      if (this.$taskFormInput.value) this.addTask(task);
+      this.addTask(task);
     });
   }
 
@@ -86,55 +87,67 @@ class PomodoroApp {
     });
   }
   setActiveTask() {
+    this.handlePreviousTask();
+    this.currentTask = this.data.find((task) => !task.completed);
+    if (this.currentTask) {
+      this.startTask();
+    } else {
+      this.handleEnd();
+    }
+    this.currentTask ? this.startTask() : this.handleEnd();
+    // ternary ifler deger return eden ve assignment olan durumlarda kullaniliyor
+    //const isActive = document.querySelector('#active') ? 'yes' : 'no';
+  }
+  initializeBreakTimer(deadline) {
+    createTimer({
+      context: this,
+      intervalVariable: 'breakInterval',
+      deadline: deadline,
+      timerElContent: 'Chill: ',
+      onStop: () => {
+        completeTaskOnApi(this.currentTask).then(() => {
+          this.currentTask.completed = true;
+          this.setActiveTask();
+        });
+      },
+    });
+  }
+
+  initializeTimer(deadline) {
+    createTimer({
+      context: this,
+      intervalVariable: 'currentInterval',
+      deadline,
+      timerElContent: "You're working: ",
+      onStop: () => {
+        const now = getNow();
+        const breakDeadline = addMinutesToDate(now, POMODORO_BREAK_TIME);
+        this.initializeBreakTimer(breakDeadline);
+      },
+      currentRemaining: 'currentRemaining',
+    });
+  }
+
+  handlePreviousTask() {
     const $currentActiveEl = document.querySelector('tr.active');
     if ($currentActiveEl) {
       $currentActiveEl.classList.remove('active');
       $currentActiveEl.classList.add('completed');
     }
-    this.currentTask = this.data.find((task) => !task.completed);
-    console.log(this.data);
-    if (this.currentTask) {
-      const $currentTaskEl = document.querySelector(
-        `tr[data-taskId = 'task${this.currentTask.id}']`
-      );
-      $currentTaskEl.classList.add('active');
-      const newDeadline = addMinutesToDate(getNow(), POMODORO_WORK_TIME);
-      this.createNewTimer(newDeadline);
-    } else {
-      clearInterval(this.currentInterval);
-      clearInterval(this.breakInterval);
-      this.$timerEl.innerHTML = 'All tasks are done';
-    }
   }
-  initializeBreakTimer() {
-    const now = getNow();
-    const breakDeadline = addMinutesToDate(now, POMODORO_BREAK_TIME);
-    this.breakInterval = setInterval(() => {
-      const remainingBreakTime = getRemainingDate(breakDeadline);
-      const { total, minutes, seconds } = remainingBreakTime;
-      this.$timerEl.innerHTML = `Chill: ${minutes}:${seconds}`;
-      if (total <= 0) {
-        clearInterval(this.breakInterval);
-        completeTaskOnApi(this.currentTask).then(() => {
-          this.currentTask.completed = true;
-          this.setActiveTask();
-        });
-      }
-    }, 1000);
+  startTask() {
+    const $currentTaskEl = document.querySelector(
+      `tr[data-taskId = 'task${this.currentTask.id}']`
+    );
+    $currentTaskEl.classList.add('active');
+    const newDeadline = addMinutesToDate(getNow(), POMODORO_WORK_TIME);
+    this.initializeTimer(newDeadline);
   }
 
-  initializeTimer(deadline) {
-    this.currentInterval = setInterval(() => {
-      const remainingTime = getRemainingDate(deadline);
-      const { total, minutes, seconds } = remainingTime;
-      this.currentRemaining = total;
-      this.$timerEl.innerHTML = `You are working: ${minutes}:${seconds}`;
-
-      if (total <= 0) {
-        clearInterval(this.currentInterval);
-        this.initializeBreakTimer();
-      }
-    }, 1000);
+  handleEnd() {
+    clearInterval(this.currentInterval);
+    clearInterval(this.breakInterval);
+    this.$timerEl.innerHTML = 'All tasks are done';
   }
   createNewTimer(deadline) {
     this.initializeTimer(deadline);
@@ -142,15 +155,19 @@ class PomodoroApp {
 
   handleStart() {
     this.$startBtn.addEventListener('click', () => {
+      // check if continues to current task or start a new task.
       if (this.currentRemaining) {
-        const remainingDeadline = new Date(
-          getNow().getTime() + this.currentRemaining
-        );
-        this.createNewTimer(remainingDeadline);
+        this.continueTask();
       } else {
         this.setActiveTask();
       }
     });
+  }
+  continueTask() {
+    const now = getNow();
+    const nowTimestamp = now.getTime();
+    const remainingDeadline = new Date(nowTimestamp + this.currentRemaining);
+    this.initializeTimer(remainingDeadline);
   }
 
   handlePause() {
