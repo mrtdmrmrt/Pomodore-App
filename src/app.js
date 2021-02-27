@@ -1,12 +1,27 @@
 import { getDataFromApi, addTaskToApi, deleteTaskToApi } from './data';
+import { POMODORO_WORK_TIME, POMODORO_BREAK_TIME } from './constans';
+import { getNow, addMinutesToDate, getRemainingDate } from './helpers/date';
 
 class PomodoroApp {
   constructor(options) {
-    let { tableTbodySelector, taskFormSelector } = options;
+    let {
+      tableTbodySelector,
+      taskFormSelector,
+      startBtnSelector,
+      timerElSelector,
+      pauseBtnSelector,
+    } = options;
     this.$tableTbody = document.querySelector(tableTbodySelector);
     this.$taskForm = document.querySelector(taskFormSelector);
     this.$taskFormInput = this.$taskForm.querySelector('input');
     this.$taskFormBtn = this.$taskForm.querySelector('button');
+
+    this.$startBtn = document.querySelector(startBtnSelector);
+    this.$pauseBtn = document.querySelector(pauseBtnSelector);
+    this.$timerEl = document.querySelector(timerElSelector);
+    this.currentInterval = null;
+    this.breakInterval = null;
+    this.currentRemaining = null;
   }
 
   addTask(task) {
@@ -64,9 +79,64 @@ class PomodoroApp {
     });
   }
 
+  initializeBreakTimer() {
+    const now = getNow();
+    const breakDeadline = addMinutesToDate(now, POMODORO_BREAK_TIME);
+    this.breakInterval = setInterval(() => {
+      const remainingBreakTime = getRemainingDate(breakDeadline);
+      const { total, minutes, seconds } = remainingBreakTime;
+      this.$timerEl.innerHTML = `Chill: ${minutes}:${seconds}`;
+      if (total <= 0) {
+        clearInterval(this.breakInterval);
+        const newDeadline = addMinutesToDate(getNow(), POMODORO_WORK_TIME);
+        this.createNewTimer(newDeadline);
+      }
+    }, 1000);
+  }
+
+  initializeTimer(deadline) {
+    this.currentInterval = setInterval(() => {
+      const remainingTime = getRemainingDate(deadline);
+      const { total, minutes, seconds } = remainingTime;
+      this.currentRemaining = total;
+      this.$timerEl.innerHTML = `You are working: ${minutes}:${seconds}`;
+
+      if (total <= 0) {
+        clearInterval(this.currentInterval);
+        this.initializeBreakTimer();
+      }
+    }, 1000);
+  }
+  createNewTimer(deadline) {
+    this.initializeTimer(deadline);
+  }
+
+  handleStart() {
+    this.$startBtn.addEventListener('click', () => {
+      if (this.currentRemaining) {
+        const remainingDeadline = new Date(
+          getNow().getTime() + this.currentRemaining
+        );
+        this.createNewTimer(remainingDeadline);
+      } else {
+        const newDeadline = addMinutesToDate(getNow(), POMODORO_WORK_TIME);
+        this.createNewTimer(newDeadline);
+      }
+    });
+  }
+
+  handlePause() {
+    this.$pauseBtn.addEventListener('click', () => {
+      clearInterval(this.currentInterval);
+      console.log(this.currentRemaining);
+    });
+  }
+
   init() {
     this.fillTasksTable();
     this.handleAddTask();
+    this.handleStart();
+    this.handlePause();
   }
 }
 
