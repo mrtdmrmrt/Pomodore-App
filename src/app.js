@@ -49,8 +49,9 @@ class PomodoroApp {
   fillDeleteTask() {
     const $deleteBtn = document.querySelectorAll('.btn-delete');
     $deleteBtn.forEach((element) => {
+      console.log('element=>', element);
       element.addEventListener('click', (e) => {
-        deleteTaskToApi(e.srcElement.id).then((res) => {
+        deleteTaskToApi(element.id).then((res) => {
           if (res.status == '200') {
             const $newTaskEl = this.$tableTbody.querySelectorAll('tr');
             $newTaskEl.forEach((tr) => {
