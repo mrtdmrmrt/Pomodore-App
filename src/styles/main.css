@@ -41,3 +41,12 @@
 .btn-delete:hover {
     background-color: #911111;
 }
+
+tr.active {
+    background: #506350;
+    color: #fff;
+}
+
+tr.completed {
+    text-decoration: line-through;
+    background: gray;}

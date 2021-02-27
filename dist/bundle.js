@@ -429,7 +429,7 @@ __webpack_require__.r(__webpack_exports__);
 
 var ___CSS_LOADER_EXPORT___ = _node_modules_css_loader_dist_runtime_api_js__WEBPACK_IMPORTED_MODULE_0___default()(function(i){return i[1]});
 // Module
-___CSS_LOADER_EXPORT___.push([module.id, ".spacing {\n    padding: 15px 0;\n}\n\n\n.instructions h3 {\n    text-align: center;\n}\n\n.instructions ol {\n    width: 40%;\n    margin: 0 auto;\n}\n\n.timer {\n    text-align: center;\n    font-weight: bold;\n    font-size: 80px;\n}\n\n.action-buttons {\n    text-align: center;\n}\n\n.action-buttons .btn+.btn {\n    margin-left: 15px;\n}\n\n.btn-delete {\n    background-color: #C88888;\n    border: none;\n    border-radius: 50%;\n    color: white;\n    padding: 12px 16px;\n    font-size: 16px;\n    cursor: pointer;\n    transition: all .3s ease-in-out;\n}\n\n/* Darker background on mouse-over */\n.btn-delete:hover {\n    background-color: #911111;\n}", ""]);
+___CSS_LOADER_EXPORT___.push([module.id, ".spacing {\n    padding: 15px 0;\n}\n\n\n.instructions h3 {\n    text-align: center;\n}\n\n.instructions ol {\n    width: 40%;\n    margin: 0 auto;\n}\n\n.timer {\n    text-align: center;\n    font-weight: bold;\n    font-size: 80px;\n}\n\n.action-buttons {\n    text-align: center;\n}\n\n.action-buttons .btn+.btn {\n    margin-left: 15px;\n}\n\n.btn-delete {\n    background-color: #C88888;\n    border: none;\n    border-radius: 50%;\n    color: white;\n    padding: 12px 16px;\n    font-size: 16px;\n    cursor: pointer;\n    transition: all .3s ease-in-out;\n}\n\n/* Darker background on mouse-over */\n.btn-delete:hover {\n    background-color: #911111;\n}\n\ntr.active {\n    background: #506350;\n    color: #fff;\n}\n\ntr.completed {\n    text-decoration: line-through;\n    background: gray;}", ""]);
 // Exports
 /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (___CSS_LOADER_EXPORT___);
 
@@ -464,6 +464,7 @@ var PomodoroApp = /*#__PURE__*/function () {
         startBtnSelector = options.startBtnSelector,
         timerElSelector = options.timerElSelector,
         pauseBtnSelector = options.pauseBtnSelector;
+    this.data = [];
     this.$tableTbody = document.querySelector(tableTbodySelector);
     this.$taskForm = document.querySelector(taskFormSelector);
     this.$taskFormInput = this.$taskForm.querySelector('input');
@@ -474,6 +475,7 @@ var PomodoroApp = /*#__PURE__*/function () {
     this.currentInterval = null;
     this.breakInterval = null;
     this.currentRemaining = null;
+    this.currentTask = null;
   }
 
   _createClass(PomodoroApp, [{
@@ -481,22 +483,23 @@ var PomodoroApp = /*#__PURE__*/function () {
     value: function addTask(task) {
       var _this = this;
 
-      this.$taskFormBtn.textContent = 'Loading...';
-      this.$taskFormBtn.disabled = true;
       (0,_data__WEBPACK_IMPORTED_MODULE_0__.addTaskToApi)(task).then(function (data) {
         return data.json();
       }).then(function (newTask) {
         _this.addTaskToTable(newTask);
-
-        _this.$taskFormBtn.textContent = 'Add Task';
-        _this.$taskFormBtn.disabled = false;
       });
     }
   }, {
     key: "addTaskToTable",
     value: function addTaskToTable(task, index) {
       var $newTaskEl = document.createElement('tr');
-      $newTaskEl.innerHTML = "<th scope=\"row\">".concat(task.id, "</th><td>").concat(task.title, "</td> <td><button id='").concat(task.id, "' class=\"btn-delete\"><i class=\"fa fa-trash\"></i></button></td>");
+      $newTaskEl.innerHTML = "<th scope=\"row\">".concat(task.id, "</th><td>").concat(task.title, "</td>");
+      $newTaskEl.setAttribute('data-taskId', "task".concat(task.id));
+
+      if (task.completed) {
+        $newTaskEl.classList.add('completed');
+      }
+
       this.$tableTbody.appendChild($newTaskEl);
       this.$taskFormInput.value = '';
     }
@@ -508,7 +511,8 @@ var PomodoroApp = /*#__PURE__*/function () {
       this.$taskForm.addEventListener('submit', function (e) {
         e.preventDefault();
         var task = {
-          title: _this2.$taskFormInput.value
+          title: _this2.$taskFormInput.value,
+          completed: false
         };
         if (_this2.$taskFormInput.value) _this2.addTask(task);
       });
@@ -519,6 +523,7 @@ var PomodoroApp = /*#__PURE__*/function () {
       var _this3 = this;
 
       (0,_data__WEBPACK_IMPORTED_MODULE_0__.getDataFromApi)().then(function (currentTasks) {
+        _this3.data = currentTasks;
         currentTasks.forEach(function (task, index) {
           _this3.addTaskToTable(task, index + 1);
         });
@@ -550,6 +555,32 @@ var PomodoroApp = /*#__PURE__*/function () {
       });
     }
   }, {
+    key: "setActiveTask",
+    value: function setActiveTask() {
+      var $currentActiveEl = document.querySelector('tr.active');
+
+      if ($currentActiveEl) {
+        $currentActiveEl.classList.remove('active');
+        $currentActiveEl.classList.add('completed');
+      }
+
+      this.currentTask = this.data.find(function (task) {
+        return !task.completed;
+      });
+      console.log(this.data);
+
+      if (this.currentTask) {
+        var $currentTaskEl = document.querySelector("tr[data-taskId = 'task".concat(this.currentTask.id, "']"));
+        $currentTaskEl.classList.add('active');
+        var newDeadline = (0,_helpers_date__WEBPACK_IMPORTED_MODULE_2__.addMinutesToDate)((0,_helpers_date__WEBPACK_IMPORTED_MODULE_2__.getNow)(), _constans__WEBPACK_IMPORTED_MODULE_1__.POMODORO_WORK_TIME);
+        this.createNewTimer(newDeadline);
+      } else {
+        clearInterval(this.currentInterval);
+        clearInterval(this.breakInterval);
+        this.$timerEl.innerHTML = 'All tasks are done';
+      }
+    }
+  }, {
     key: "initializeBreakTimer",
     value: function initializeBreakTimer() {
       var _this5 = this;
@@ -565,9 +596,11 @@ var PomodoroApp = /*#__PURE__*/function () {
 
         if (total <= 0) {
           clearInterval(_this5.breakInterval);
-          var newDeadline = (0,_helpers_date__WEBPACK_IMPORTED_MODULE_2__.addMinutesToDate)((0,_helpers_date__WEBPACK_IMPORTED_MODULE_2__.getNow)(), _constans__WEBPACK_IMPORTED_MODULE_1__.POMODORO_WORK_TIME);
+          (0,_data__WEBPACK_IMPORTED_MODULE_0__.completeTaskOnApi)(_this5.currentTask).then(function () {
+            _this5.currentTask.completed = true;
 
-          _this5.createNewTimer(newDeadline);
+            _this5.setActiveTask();
+          });
         }
       }, 1000);
     }
@@ -607,9 +640,7 @@ var PomodoroApp = /*#__PURE__*/function () {
 
           _this7.createNewTimer(remainingDeadline);
         } else {
-          var newDeadline = (0,_helpers_date__WEBPACK_IMPORTED_MODULE_2__.addMinutesToDate)((0,_helpers_date__WEBPACK_IMPORTED_MODULE_2__.getNow)(), _constans__WEBPACK_IMPORTED_MODULE_1__.POMODORO_WORK_TIME);
-
-          _this7.createNewTimer(newDeadline);
+          _this7.setActiveTask();
         }
       });
     }
@@ -646,9 +677,16 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   "getDataFromApi": () => (/* binding */ getDataFromApi),
 /* harmony export */   "addTaskToApi": () => (/* binding */ addTaskToApi),
-/* harmony export */   "deleteTaskToApi": () => (/* binding */ deleteTaskToApi)
+/* harmony export */   "deleteTaskToApi": () => (/* binding */ deleteTaskToApi),
+/* harmony export */   "completeTaskOnApi": () => (/* binding */ completeTaskOnApi)
 /* harmony export */ });
 /* harmony import */ var _constans__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(9);
+function ownKeys(object, enumerableOnly) { var keys = Object.keys(object); if (Object.getOwnPropertySymbols) { var symbols = Object.getOwnPropertySymbols(object); if (enumerableOnly) symbols = symbols.filter(function (sym) { return Object.getOwnPropertyDescriptor(object, sym).enumerable; }); keys.push.apply(keys, symbols); } return keys; }
+
+function _objectSpread(target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i] != null ? arguments[i] : {}; if (i % 2) { ownKeys(Object(source), true).forEach(function (key) { _defineProperty(target, key, source[key]); }); } else if (Object.getOwnPropertyDescriptors) { Object.defineProperties(target, Object.getOwnPropertyDescriptors(source)); } else { ownKeys(Object(source)).forEach(function (key) { Object.defineProperty(target, key, Object.getOwnPropertyDescriptor(source, key)); }); } } return target; }
+
+function _defineProperty(obj, key, value) { if (key in obj) { Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); } else { obj[key] = value; } return obj; }
+
 
 var getDataFromApi = function getDataFromApi() {
   return fetch(_constans__WEBPACK_IMPORTED_MODULE_0__.API_URL).then(function (data) {
@@ -672,6 +710,18 @@ var deleteTaskToApi = function deleteTaskToApi(id) {
     method: 'delete'
   });
 };
+var completeTaskOnApi = function completeTaskOnApi(task) {
+  return fetch("".concat(_constans__WEBPACK_IMPORTED_MODULE_0__.API_URL, "/").concat(task.id), {
+    method: 'put',
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(_objectSpread(_objectSpread({}, task), {}, {
+      completed: true
+    }))
+  });
+};
 
 /***/ }),
 /* 9 */
@@ -684,8 +734,8 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   "POMODORO_BREAK_TIME": () => (/* binding */ POMODORO_BREAK_TIME)
 /* harmony export */ });
 var API_URL = 'https://603248a9a223790017aced77.mockapi.io/tasks';
-var POMODORO_WORK_TIME = 25;
-var POMODORO_BREAK_TIME = 5;
+var POMODORO_WORK_TIME = 0.09;
+var POMODORO_BREAK_TIME = 0.05;
 
 /***/ }),
 /* 10 */
