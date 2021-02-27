@@ -443,6 +443,8 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   "default": () => (__WEBPACK_DEFAULT_EXPORT__)
 /* harmony export */ });
 /* harmony import */ var _data__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(8);
+/* harmony import */ var _constans__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(9);
+/* harmony import */ var _helpers_date__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(10);
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
 function _defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } }
@@ -451,16 +453,27 @@ function _createClass(Constructor, protoProps, staticProps) { if (protoProps) _d
 
 
 
+
+
 var PomodoroApp = /*#__PURE__*/function () {
   function PomodoroApp(options) {
     _classCallCheck(this, PomodoroApp);
 
     var tableTbodySelector = options.tableTbodySelector,
-        taskFormSelector = options.taskFormSelector;
+        taskFormSelector = options.taskFormSelector,
+        startBtnSelector = options.startBtnSelector,
+        timerElSelector = options.timerElSelector,
+        pauseBtnSelector = options.pauseBtnSelector;
     this.$tableTbody = document.querySelector(tableTbodySelector);
     this.$taskForm = document.querySelector(taskFormSelector);
     this.$taskFormInput = this.$taskForm.querySelector('input');
     this.$taskFormBtn = this.$taskForm.querySelector('button');
+    this.$startBtn = document.querySelector(startBtnSelector);
+    this.$pauseBtn = document.querySelector(pauseBtnSelector);
+    this.$timerEl = document.querySelector(timerElSelector);
+    this.currentInterval = null;
+    this.breakInterval = null;
+    this.currentRemaining = null;
   }
 
   _createClass(PomodoroApp, [{
@@ -520,8 +533,9 @@ var PomodoroApp = /*#__PURE__*/function () {
 
       var $deleteBtn = document.querySelectorAll('.btn-delete');
       $deleteBtn.forEach(function (element) {
+        console.log('element=>', element);
         element.addEventListener('click', function (e) {
-          (0,_data__WEBPACK_IMPORTED_MODULE_0__.deleteTaskToApi)(e.srcElement.id).then(function (res) {
+          (0,_data__WEBPACK_IMPORTED_MODULE_0__.deleteTaskToApi)(element.id).then(function (res) {
             if (res.status == '200') {
               var $newTaskEl = _this4.$tableTbody.querySelectorAll('tr');
 
@@ -536,10 +550,86 @@ var PomodoroApp = /*#__PURE__*/function () {
       });
     }
   }, {
+    key: "initializeBreakTimer",
+    value: function initializeBreakTimer() {
+      var _this5 = this;
+
+      var now = (0,_helpers_date__WEBPACK_IMPORTED_MODULE_2__.getNow)();
+      var breakDeadline = (0,_helpers_date__WEBPACK_IMPORTED_MODULE_2__.addMinutesToDate)(now, _constans__WEBPACK_IMPORTED_MODULE_1__.POMODORO_BREAK_TIME);
+      this.breakInterval = setInterval(function () {
+        var remainingBreakTime = (0,_helpers_date__WEBPACK_IMPORTED_MODULE_2__.getRemainingDate)(breakDeadline);
+        var total = remainingBreakTime.total,
+            minutes = remainingBreakTime.minutes,
+            seconds = remainingBreakTime.seconds;
+        _this5.$timerEl.innerHTML = "Chill: ".concat(minutes, ":").concat(seconds);
+
+        if (total <= 0) {
+          clearInterval(_this5.breakInterval);
+          var newDeadline = (0,_helpers_date__WEBPACK_IMPORTED_MODULE_2__.addMinutesToDate)((0,_helpers_date__WEBPACK_IMPORTED_MODULE_2__.getNow)(), _constans__WEBPACK_IMPORTED_MODULE_1__.POMODORO_WORK_TIME);
+
+          _this5.createNewTimer(newDeadline);
+        }
+      }, 1000);
+    }
+  }, {
+    key: "initializeTimer",
+    value: function initializeTimer(deadline) {
+      var _this6 = this;
+
+      this.currentInterval = setInterval(function () {
+        var remainingTime = (0,_helpers_date__WEBPACK_IMPORTED_MODULE_2__.getRemainingDate)(deadline);
+        var total = remainingTime.total,
+            minutes = remainingTime.minutes,
+            seconds = remainingTime.seconds;
+        _this6.currentRemaining = total;
+        _this6.$timerEl.innerHTML = "You are working: ".concat(minutes, ":").concat(seconds);
+
+        if (total <= 0) {
+          clearInterval(_this6.currentInterval);
+
+          _this6.initializeBreakTimer();
+        }
+      }, 1000);
+    }
+  }, {
+    key: "createNewTimer",
+    value: function createNewTimer(deadline) {
+      this.initializeTimer(deadline);
+    }
+  }, {
+    key: "handleStart",
+    value: function handleStart() {
+      var _this7 = this;
+
+      this.$startBtn.addEventListener('click', function () {
+        if (_this7.currentRemaining) {
+          var remainingDeadline = new Date((0,_helpers_date__WEBPACK_IMPORTED_MODULE_2__.getNow)().getTime() + _this7.currentRemaining);
+
+          _this7.createNewTimer(remainingDeadline);
+        } else {
+          var newDeadline = (0,_helpers_date__WEBPACK_IMPORTED_MODULE_2__.addMinutesToDate)((0,_helpers_date__WEBPACK_IMPORTED_MODULE_2__.getNow)(), _constans__WEBPACK_IMPORTED_MODULE_1__.POMODORO_WORK_TIME);
+
+          _this7.createNewTimer(newDeadline);
+        }
+      });
+    }
+  }, {
+    key: "handlePause",
+    value: function handlePause() {
+      var _this8 = this;
+
+      this.$pauseBtn.addEventListener('click', function () {
+        clearInterval(_this8.currentInterval);
+        console.log(_this8.currentRemaining);
+      });
+    }
+  }, {
     key: "init",
     value: function init() {
       this.fillTasksTable();
       this.handleAddTask();
+      this.handleStart();
+      this.handlePause();
     }
   }]);
 
@@ -589,9 +679,42 @@ var deleteTaskToApi = function deleteTaskToApi(id) {
 
 __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
-/* harmony export */   "API_URL": () => (/* binding */ API_URL)
+/* harmony export */   "API_URL": () => (/* binding */ API_URL),
+/* harmony export */   "POMODORO_WORK_TIME": () => (/* binding */ POMODORO_WORK_TIME),
+/* harmony export */   "POMODORO_BREAK_TIME": () => (/* binding */ POMODORO_BREAK_TIME)
 /* harmony export */ });
 var API_URL = 'https://603248a9a223790017aced77.mockapi.io/tasks';
+var POMODORO_WORK_TIME = 25;
+var POMODORO_BREAK_TIME = 5;
+
+/***/ }),
+/* 10 */
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "getNow": () => (/* binding */ getNow),
+/* harmony export */   "addMinutesToDate": () => (/* binding */ addMinutesToDate),
+/* harmony export */   "getRemainingDate": () => (/* binding */ getRemainingDate)
+/* harmony export */ });
+var getNow = function getNow() {
+  return new Date();
+};
+var addMinutesToDate = function addMinutesToDate(date, minutes) {
+  var dateTimestamp = date.getTime();
+  var minutesTimestamp = minutes * 60000;
+  return new Date(dateTimestamp + minutesTimestamp);
+};
+var getRemainingDate = function getRemainingDate(date) {
+  var total = Date.parse(date) - Date.parse(getNow());
+  var seconds = Math.floor(total / 1000 % 60);
+  var minutes = Math.floor(total / 1000 / 60 % 60);
+  return {
+    total: total,
+    seconds: seconds,
+    minutes: minutes
+  };
+};
 
 /***/ })
 /******/ 	]);
@@ -673,7 +796,10 @@ __webpack_require__.r(__webpack_exports__);
 
 var pomodoroApp = new _app__WEBPACK_IMPORTED_MODULE_2__.default({
   tableTbodySelector: '#table-tbody',
-  taskFormSelector: '#task-form'
+  taskFormSelector: '#task-form',
+  startBtnSelector: '#start',
+  pauseBtnSelector: '#pause',
+  timerElSelector: '#timer'
 });
 pomodoroApp.init();
 })();
